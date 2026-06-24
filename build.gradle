@@ -49,7 +49,6 @@ neoForge {
 }
 
 dependencies {
-    annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
 }
 
 var generateModMetadata = tasks.register("generateModMetadata", ProcessResources) {

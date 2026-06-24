@@ -9,11 +9,7 @@ displayName="${mod_name}"
 description='''
 A touch-screen virtual keyboard for Steam Deck.
 Press the configured key (default K) to toggle the keyboard overlay.
-Automatically opens when chat or JEI/EMI search fields gain focus.
 '''
-
-[[mixins]]
-config="${mod_id}.mixins.json"
 
 [[dependencies.${mod_id}]]
 modId="neoforge"

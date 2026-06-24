@@ -1,17 +1,17 @@
 package com.steamdeck.keyboard;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
-import org.jspecify.annotations.NonNull;
+import org.jetbrains.annotations.NotNull;
 
 public class KeyboardScreen extends Screen {
     private final Screen backgroundScreen;
     private final InputTarget inputTarget;
     private KeyboardWidget keyboardWidget;
-    private int dragStartX, dragStartY, dragOffsetX, dragOffsetY;
+    private double dragStartX, dragStartY;
+    private int dragOffsetX, dragOffsetY;
     private boolean dragging;
 
     public KeyboardScreen(Screen backgroundScreen, InputTarget inputTarget) {
@@ -36,26 +36,28 @@ public class KeyboardScreen extends Screen {
     }
 
     @Override
-    public void extractRenderState(@NonNull GuiGraphicsExtractor g, int mx, int my, float a) {
-        backgroundScreen.extractRenderState(g, mx, my, a);
-        g.nextStratum();
-        super.extractRenderState(g, mx, my, a);
+    public void render(@NotNull GuiGraphics g, int mx, int my, float a) {
+        backgroundScreen.render(g, mx, my, a);
+        g.pose().pushPose();
+        g.pose().translate(0, 0, 100);
+        super.render(g, mx, my, a);
+        g.pose().popPose();
     }
 
     @Override
-    public void extractBackground(@NonNull GuiGraphicsExtractor g, int mx, int my, float a) {
-        backgroundScreen.extractBackground(g, mx, my, a);
+    public void renderBackground(@NotNull GuiGraphics g, int mx, int my, float a) {
+        // Don't render default background - the background screen handles it
     }
 
     @Override
     public void tick() { backgroundScreen.tick(); super.tick(); }
 
     @Override
-    public boolean mouseClicked(@NonNull MouseButtonEvent ev, boolean dbl) {
-        if (super.mouseClicked(ev, dbl)) return true;
-        if (keyboardWidget != null && keyboardWidget.isMouseOver(ev.x(), ev.y())) {
+    public boolean mouseClicked(double mx, double my, int button) {
+        if (super.mouseClicked(mx, my, button)) return true;
+        if (keyboardWidget != null && keyboardWidget.isMouseOver(mx, my)) {
             dragging = true;
-            dragStartX = (int) ev.x(); dragStartY = (int) ev.y();
+            dragStartX = mx; dragStartY = my;
             dragOffsetX = keyboardWidget.getX(); dragOffsetY = keyboardWidget.getY();
             return true;
         }
@@ -63,19 +65,19 @@ public class KeyboardScreen extends Screen {
     }
 
     @Override
-    public boolean mouseDragged(@NonNull MouseButtonEvent ev, double dx, double dy) {
+    public boolean mouseDragged(double mx, double my, int button, double dx, double dy) {
         if (dragging && keyboardWidget != null) {
-            int nx = dragOffsetX + (int) ev.x() - dragStartX;
-            int ny = dragOffsetY + (int) ev.y() - dragStartY;
+            int nx = dragOffsetX + (int)(mx - dragStartX);
+            int ny = dragOffsetY + (int)(my - dragStartY);
             keyboardWidget.setX(Math.max(0, Math.min(nx, width - keyboardWidget.getWidth())));
             keyboardWidget.setY(Math.max(0, Math.min(ny, height - keyboardWidget.getHeight())));
             return true;
         }
-        return super.mouseDragged(ev, dx, dy);
+        return super.mouseDragged(mx, my, button, dx, dy);
     }
 
     @Override
-    public boolean mouseReleased(@NonNull MouseButtonEvent ev) {
+    public boolean mouseReleased(double mx, double my, int button) {
         dragging = false;
         if (keyboardWidget != null) {
             KeyboardConfig.KEYBOARD_X.set(keyboardWidget.getX());
@@ -84,7 +86,7 @@ public class KeyboardScreen extends Screen {
             KeyboardConfig.KEYBOARD_HEIGHT.set(keyboardWidget.getHeight());
             KeyboardConfig.SPEC.save();
         }
-        return super.mouseReleased(ev);
+        return super.mouseReleased(mx, my, button);
     }
 
     @Override

@@ -4,14 +4,14 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.events.ContainerEventHandler;
 import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.client.gui.navigation.FocusNavigationEvent;
-import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 public class KeyboardWidget extends AbstractWidget implements ContainerEventHandler {
@@ -68,14 +68,14 @@ public class KeyboardWidget extends AbstractWidget implements ContainerEventHand
     private void setShiftLocked(boolean l) { shiftLocked = l; }
 
     @Override
-    protected void extractWidgetRenderState(@NonNull GuiGraphicsExtractor g, int mx, int my, float a) {
+    protected void renderWidget(@NotNull GuiGraphics g, int mx, int my, float a) {
         g.fill(getX(), getY(), getX() + getWidth(), getY() + getHeight(), 0xC0141414);
-        g.outline(getX(), getY(), getWidth(), getHeight(), 0xFF666666);
-        for (KeyWidget k : keys) k.extractRenderState(g, mx, my, a);
+        g.renderOutline(getX(), getY(), getWidth(), getHeight(), 0xFF666666);
+        for (KeyWidget k : keys) k.render(g, mx, my, a);
         for (KeyWidget k : keys) k.renderLabel(g, shifted);
     }
 
-    @Override public @NonNull List<KeyWidget> children() { return Collections.unmodifiableList(keys); }
+    @Override public @NotNull List<KeyWidget> children() { return Collections.unmodifiableList(keys); }
     @Override public boolean isDragging() { return dragging; }
     @Override public void setDragging(boolean d) { dragging = d; }
     @Override public @Nullable KeyWidget getFocused() { return focusedKey; }
@@ -85,8 +85,8 @@ public class KeyboardWidget extends AbstractWidget implements ContainerEventHand
         else focusedKey = null;
     }
     @Override public @Nullable net.minecraft.client.gui.ComponentPath nextFocusPath(FocusNavigationEvent e) { return ContainerEventHandler.super.nextFocusPath(e); }
-    @Override public boolean mouseClicked(MouseButtonEvent e, boolean d) { return ContainerEventHandler.super.mouseClicked(e, d); }
-    @Override public boolean mouseReleased(MouseButtonEvent e) { return ContainerEventHandler.super.mouseReleased(e); }
-    @Override public boolean mouseDragged(MouseButtonEvent e, double dx, double dy) { return ContainerEventHandler.super.mouseDragged(e, dx, dy); }
+    @Override public boolean mouseClicked(double mx, double my, int button) { return ContainerEventHandler.super.mouseClicked(mx, my, button); }
+    @Override public boolean mouseReleased(double mx, double my, int button) { return ContainerEventHandler.super.mouseReleased(mx, my, button); }
+    @Override public boolean mouseDragged(double mx, double my, int button, double dx, double dy) { return ContainerEventHandler.super.mouseDragged(mx, my, button, dx, dy); }
     @Override protected void updateWidgetNarration(NarrationElementOutput o) {}
 }
