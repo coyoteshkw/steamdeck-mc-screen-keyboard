@@ -49,6 +49,7 @@ public class SteamDeckKeyboardClient {
                 && !suppressAutoOpen) {
             EditBox focused = findFocusedEditBoxRecursive(mc.screen);
             if (focused != null) {
+                SteamDeckKeyboard.LOGGER.info("Auto-open: found focused EditBox on {}", mc.screen.getClass().getSimpleName());
                 openKeyboardOnScreen(mc, mc.screen);
             }
         }
