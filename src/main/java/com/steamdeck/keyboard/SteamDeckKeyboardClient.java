@@ -22,6 +22,8 @@ public class SteamDeckKeyboardClient {
     private static KeyMapping toggleKeyMapping;
     private static boolean pendingKeyboardOpen = false;
     static boolean suppressAutoOpen = false;
+    // Track the last screen where we auto-opened to avoid repeated opens
+    private static String lastAutoOpenedScreen = null;
 
     public SteamDeckKeyboardClient(IEventBus modEventBus, ModContainer modContainer) {
         modContainer.registerConfig(ModConfig.Type.CLIENT, KeyboardConfig.SPEC);
@@ -44,31 +46,25 @@ public class SteamDeckKeyboardClient {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || toggleKeyMapping == null) return;
 
-        // --- Auto-open: detect when any EditBox has focus (only if config enables it) ---
+        // --- Auto-open: when entering a screen that has an EditBox ---
         if (KeyboardConfig.AUTO_OPEN_OTHERS.get()
                 && mc.screen != null && !KeyboardScreen.isOpen(mc) && !(mc.screen instanceof KeyboardScreen)
                 && !suppressAutoOpen) {
-            EditBox focused = findFocusedEditBoxRecursive(mc.screen);
-            if (focused != null) {
-                SteamDeckKeyboard.LOGGER.info("Auto-open: found focused EditBox '{}' on {}",
-                    focused.getClass().getSimpleName(), mc.screen.getClass().getSimpleName());
-                openKeyboardOnScreen(mc, mc.screen);
-            } else {
-                // Debug: list all EditBox children (focused or not)
-                var allBoxes = findAllEditBoxesRecursive(mc.screen);
-                SteamDeckKeyboard.LOGGER.info("Auto-open check: {} EditBoxes found, none focused. Screen: {}",
-                    allBoxes.size(), mc.screen.getClass().getSimpleName());
-                for (var eb : allBoxes) {
-                    SteamDeckKeyboard.LOGGER.info("  EditBox: {} focused={} visible={}",
-                        eb.getClass().getSimpleName(), eb.isFocused(), eb.visible);
+            String screenId = mc.screen.getClass().getName();
+            if (!screenId.equals(lastAutoOpenedScreen)) {
+                // New screen entered — check if it has any EditBox
+                List<EditBox> boxes = findAllEditBoxes(mc.screen);
+                if (!boxes.isEmpty()) {
+                    openKeyboardOnScreen(mc, mc.screen);
                 }
+                lastAutoOpenedScreen = screenId;
             }
-        }
-        if (mc.screen == null) {
+        } else if (mc.screen == null) {
+            lastAutoOpenedScreen = null;
             suppressAutoOpen = false;
         }
 
-        // --- Delayed open (from K key → ChatScreen) ---
+        // --- Delayed open (from K key -> ChatScreen) ---
         if (pendingKeyboardOpen) {
             pendingKeyboardOpen = false;
             if (mc.screen != null && !(mc.screen instanceof KeyboardScreen) && !KeyboardScreen.isOpen(mc)) {
@@ -85,7 +81,7 @@ public class SteamDeckKeyboardClient {
     private void handleTogglePress(Minecraft mc) {
         if (KeyboardScreen.isOpen(mc)) {
             mc.setScreen(((KeyboardScreen) mc.screen).getBackgroundScreen());
-            suppressAutoOpen = true;  // Don't re-open immediately
+            suppressAutoOpen = true;
             return;
         }
         if (mc.screen == null) {
@@ -94,14 +90,12 @@ public class SteamDeckKeyboardClient {
             return;
         }
         if (mc.screen instanceof KeyboardScreen) return;
-        // Don't open if an EditBox already has focus (would cause double-open with auto-open)
-        if (findFocusedEditBoxRecursive(mc.screen) != null) return;
 
         openKeyboardOnScreen(mc, mc.screen);
     }
 
     private void openKeyboardOnScreen(Minecraft mc, net.minecraft.client.gui.screens.Screen screen) {
-        EditBox editBox = findEditBoxRecursive(screen);
+        EditBox editBox = findAnyEditBox(screen);
         InputTarget target;
         if (editBox != null) {
             target = KeyboardInputHandler.createInputTarget(editBox);
@@ -111,25 +105,7 @@ public class SteamDeckKeyboardClient {
         KeyboardScreen.open(screen, target);
     }
 
-    /** Find a *focused* EditBox recursively. */
-    private static EditBox findFocusedEditBoxRecursive(net.minecraft.client.gui.screens.Screen screen) {
-        if (screen == null) return null;
-        return findFocusedEditBoxInList(screen.children());
-    }
-
-    private static EditBox findFocusedEditBoxInList(List<? extends net.minecraft.client.gui.components.events.GuiEventListener> children) {
-        for (var child : children) {
-            if (child instanceof EditBox editBox && editBox.isFocused()) return editBox;
-            if (child instanceof net.minecraft.client.gui.components.events.ContainerEventHandler container) {
-                EditBox found = findFocusedEditBoxInList(container.children());
-                if (found != null) return found;
-            }
-        }
-        return null;
-    }
-
-    /** Find ALL EditBoxes recursively, for debugging. */
-    private static List<EditBox> findAllEditBoxesRecursive(net.minecraft.client.gui.screens.Screen screen) {
+    private static List<EditBox> findAllEditBoxes(net.minecraft.client.gui.screens.Screen screen) {
         List<EditBox> result = new ArrayList<>();
         if (screen != null) collectEditBoxes(screen.children(), result);
         return result;
@@ -144,28 +120,9 @@ public class SteamDeckKeyboardClient {
         }
     }
 
-    /** Find any EditBox recursively (not necessarily focused). */
-    private static EditBox findEditBoxRecursive(net.minecraft.client.gui.screens.Screen screen) {
-        if (screen instanceof ChatScreen chatScreen) {
-            try {
-                var field = ChatScreen.class.getDeclaredField("input");
-                field.setAccessible(true);
-                return (EditBox) field.get(chatScreen);
-            } catch (Exception ignored) {}
-        }
-        if (screen == null) return null;
-        return findEditBoxInList(screen.children());
-    }
-
-    private static EditBox findEditBoxInList(List<? extends net.minecraft.client.gui.components.events.GuiEventListener> children) {
-        for (var child : children) {
-            if (child instanceof EditBox editBox) return editBox;
-            if (child instanceof net.minecraft.client.gui.components.events.ContainerEventHandler container) {
-                EditBox found = findEditBoxInList(container.children());
-                if (found != null) return found;
-            }
-        }
-        return null;
+    private static EditBox findAnyEditBox(net.minecraft.client.gui.screens.Screen screen) {
+        var boxes = findAllEditBoxes(screen);
+        return boxes.isEmpty() ? null : boxes.get(0);
     }
 
     private static class FallbackInputTarget implements InputTarget {
