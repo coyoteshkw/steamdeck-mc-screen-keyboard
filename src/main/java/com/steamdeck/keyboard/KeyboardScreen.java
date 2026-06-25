@@ -54,12 +54,24 @@ public class KeyboardScreen extends Screen {
 
     @Override
     public boolean mouseClicked(double mx, double my, int button) {
+        // Let child widgets (keys) handle the click first
         if (super.mouseClicked(mx, my, button)) return true;
-        if (keyboardWidget != null && keyboardWidget.isMouseOver(mx, my)) {
+
+        // Click on keyboard background (not on a key) — start drag
+        if (keyboardWidget != null && keyboardWidget.isMouseOver(mx, my)
+                && !isClickOnKeyWidget(mx, my)) {
             dragging = true;
             dragStartX = mx; dragStartY = my;
             dragOffsetX = keyboardWidget.getX(); dragOffsetY = keyboardWidget.getY();
             return true;
+        }
+        return false;
+    }
+
+    private boolean isClickOnKeyWidget(double mx, double my) {
+        if (keyboardWidget == null) return false;
+        for (var child : keyboardWidget.children()) {
+            if (child.isMouseOver(mx, my)) return true;
         }
         return false;
     }

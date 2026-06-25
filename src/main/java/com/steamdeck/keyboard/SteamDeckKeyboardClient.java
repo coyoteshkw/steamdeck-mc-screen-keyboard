@@ -17,7 +17,6 @@ import net.neoforged.neoforge.common.NeoForge;
 @Mod(value = SteamDeckKeyboard.MODID, dist = Dist.CLIENT)
 public class SteamDeckKeyboardClient {
     private static KeyMapping toggleKeyMapping;
-    private static boolean wasToggleKeyDown = false;
     // When true, on next tick the keyboard will be opened on top of the current screen
     private static boolean pendingKeyboardOpen = false;
 
@@ -50,14 +49,14 @@ public class SteamDeckKeyboardClient {
             }
         }
 
-        boolean down = toggleKeyMapping.isDown();
-        if (down && !wasToggleKeyDown) {
+        boolean down = toggleKeyMapping.consumeClick();
+
+        if (down) {
             SteamDeckKeyboard.LOGGER.info("Toggle key pressed. screen={}, isKeyboardOpen={}",
                 mc.screen != null ? mc.screen.getClass().getSimpleName() : "null",
                 KeyboardScreen.isOpen(mc));
             handleTogglePress(mc);
         }
-        wasToggleKeyDown = down;
     }
 
     private void handleTogglePress(Minecraft mc) {

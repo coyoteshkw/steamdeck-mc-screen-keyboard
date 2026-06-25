@@ -60,12 +60,13 @@ public class KeyboardInputHandler {
                         }
                     }
                     case ENTER -> {
-                        Minecraft mc = Minecraft.getInstance();
-                        if (mc.screen instanceof ChatScreen) {
-                            // For chat screen, send the message
-                            mc.setScreen(null);
-                        }
-                    }
+                // Let the screen handle Enter via its own keyPressed —
+                // ChatScreen will send the message and close itself.
+                Minecraft mc = Minecraft.getInstance();
+                if (mc.screen != null && !(mc.screen instanceof KeyboardScreen)) {
+                    mc.screen.keyPressed(com.mojang.blaze3d.platform.InputConstants.KEY_RETURN, 0, 0);
+                }
+            }
                 }
             }
         };
