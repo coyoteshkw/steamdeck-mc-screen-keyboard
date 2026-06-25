@@ -76,9 +76,8 @@ public class SteamDeckKeyboardClient {
             if (activeKeyboard.isMouseOver(event.getMouseX(), event.getMouseY())) {
                 activeKeyboard.mouseClicked(event.getMouseX(), event.getMouseY(), event.getButton());
                 event.setCanceled(true);
-            } else {
-                closeKeyboard();
             }
+            // Don't close on outside click — only close via X button
         }
     }
 
