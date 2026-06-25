@@ -39,7 +39,11 @@ public class KeyboardScreen extends Screen {
     @Override
     public void render(@NotNull GuiGraphics g, int mx, int my, float a) {
         backgroundScreen.render(g, mx, my, a);
+        // Render keyboard on top of background screen
+        g.pose().pushPose();
+        g.pose().translate(0, 0, 200);
         super.render(g, mx, my, a);
+        g.pose().popPose();
     }
 
     @Override
@@ -107,6 +111,7 @@ public class KeyboardScreen extends Screen {
 
     @Override
     public void onClose() {
+        SteamDeckKeyboardClient.suppressAutoOpen = true;
         Minecraft.getInstance().setScreen(backgroundScreen);
     }
 

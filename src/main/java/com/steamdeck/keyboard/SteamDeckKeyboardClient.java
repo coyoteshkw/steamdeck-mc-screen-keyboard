@@ -20,8 +20,9 @@ import java.util.List;
 public class SteamDeckKeyboardClient {
     private static KeyMapping toggleKeyMapping;
     private static boolean pendingKeyboardOpen = false;
-    // Track last-known focused EditBox to avoid repeated opens
     private static EditBox lastFocusedEditBox = null;
+    // Prevent re-open right after manual close
+    static boolean suppressAutoOpen = false;
 
     public SteamDeckKeyboardClient(IEventBus modEventBus, ModContainer modContainer) {
         modContainer.registerConfig(ModConfig.Type.CLIENT, KeyboardConfig.SPEC);
@@ -44,16 +45,18 @@ public class SteamDeckKeyboardClient {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || toggleKeyMapping == null) return;
 
-        // --- Auto-open: detect newly focused EditBox ---
-        if (mc.screen != null && !KeyboardScreen.isOpen(mc) && !(mc.screen instanceof KeyboardScreen)) {
+        // --- Auto-open: detect newly focused EditBox (only if config enables it) ---
+        if (KeyboardConfig.AUTO_OPEN_OTHERS.get()
+                && mc.screen != null && !KeyboardScreen.isOpen(mc) && !(mc.screen instanceof KeyboardScreen)
+                && !suppressAutoOpen) {
             EditBox focused = findFocusedEditBoxRecursive(mc.screen);
             if (focused != null && focused != lastFocusedEditBox) {
-                // New EditBox just gained focus — auto-open keyboard
                 openKeyboardOnScreen(mc, mc.screen);
             }
             lastFocusedEditBox = focused;
         } else if (mc.screen == null) {
             lastFocusedEditBox = null;
+            suppressAutoOpen = false;
         }
 
         // --- Delayed open (from K key → ChatScreen) ---
@@ -73,6 +76,7 @@ public class SteamDeckKeyboardClient {
     private void handleTogglePress(Minecraft mc) {
         if (KeyboardScreen.isOpen(mc)) {
             mc.setScreen(((KeyboardScreen) mc.screen).getBackgroundScreen());
+            suppressAutoOpen = true;  // Don't re-open immediately
             return;
         }
         if (mc.screen == null) {
