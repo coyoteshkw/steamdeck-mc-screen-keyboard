@@ -60,11 +60,14 @@ public class KeyboardInputHandler {
                         }
                     }
                     case ENTER -> {
-                // Let the screen handle Enter via its own keyPressed —
-                // ChatScreen will send the message and close itself.
+                // Keyboard is an overlay — forward Enter to the background screen
                 Minecraft mc = Minecraft.getInstance();
-                if (mc.screen != null && !(mc.screen instanceof KeyboardScreen)) {
-                    mc.screen.keyPressed(com.mojang.blaze3d.platform.InputConstants.KEY_RETURN, 0, 0);
+                if (mc.screen instanceof KeyboardScreen ks) {
+                    ks.getBackgroundScreen().keyPressed(
+                        com.mojang.blaze3d.platform.InputConstants.KEY_RETURN, 0, 0);
+                } else if (mc.screen != null) {
+                    mc.screen.keyPressed(
+                        com.mojang.blaze3d.platform.InputConstants.KEY_RETURN, 0, 0);
                 }
             }
                 }

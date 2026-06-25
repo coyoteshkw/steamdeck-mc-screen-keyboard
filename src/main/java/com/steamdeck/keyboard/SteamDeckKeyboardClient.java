@@ -8,6 +8,8 @@ import net.minecraft.client.gui.screens.ChatScreen;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
+
+import java.util.List;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.config.ModConfig;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
@@ -106,10 +108,9 @@ public class SteamDeckKeyboardClient {
     }
 
     /**
-     * Find any EditBox on the screen, focused or not.
+     * Recursively find any EditBox on the screen, focused or not.
      */
     private static EditBox findAnyEditBox(net.minecraft.client.gui.screens.Screen screen) {
-        // ChatScreen has a known field
         if (screen instanceof ChatScreen chatScreen) {
             try {
                 var field = ChatScreen.class.getDeclaredField("input");
@@ -117,10 +118,17 @@ public class SteamDeckKeyboardClient {
                 return (EditBox) field.get(chatScreen);
             } catch (Exception ignored) {}
         }
-        // Scan children
-        for (var child : screen.children()) {
+        return findEditBoxRecursive(screen.children());
+    }
+
+    private static EditBox findEditBoxRecursive(List<? extends net.minecraft.client.gui.components.events.GuiEventListener> children) {
+        for (var child : children) {
             if (child instanceof EditBox editBox) {
                 return editBox;
+            }
+            if (child instanceof net.minecraft.client.gui.components.events.ContainerEventHandler container) {
+                EditBox found = findEditBoxRecursive(container.children());
+                if (found != null) return found;
             }
         }
         return null;
