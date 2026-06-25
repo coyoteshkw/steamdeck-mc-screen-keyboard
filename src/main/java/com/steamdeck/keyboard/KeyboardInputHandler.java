@@ -1,6 +1,7 @@
 package com.steamdeck.keyboard;
 
 import net.minecraft.client.Minecraft;
+import com.steamdeck.keyboard.SteamDeckKeyboard;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.ChatScreen;
 import net.minecraft.client.gui.screens.Screen;
@@ -53,25 +54,31 @@ public class KeyboardInputHandler {
     }
 
     public static class SimpleInputTarget implements InputTarget {
-        private final List<EditBox> allEditBoxes;
         private final Screen screen;
 
         public SimpleInputTarget(Screen screen) {
             this.screen = screen;
-            this.allEditBoxes = findAllEditBoxes(screen);
         }
 
         private EditBox getTarget() {
-            // Always try to find the currently focused one first
-            for (var eb : allEditBoxes) {
-                if (eb.isFocused()) return eb;
+            var all = findAllEditBoxes(screen);
+            if (all.isEmpty()) return null;
+            // Print all EditBoxes for debug
+            SteamDeckKeyboard.LOGGER.info("SimpleInputTarget.getTarget: {} EditBoxes on screen", all.size());
+            for (var eb : all) {
+                SteamDeckKeyboard.LOGGER.info("  {} focused={} value='{}'",
+                    eb.getClass().getSimpleName(), eb.isFocused(), eb.getValue());
             }
-            return allEditBoxes.isEmpty() ? null : allEditBoxes.get(0);
+            // Try focused first
+            for (var eb : all) { if (eb.isFocused()) return eb; }
+            // Fallback: first one
+            return all.get(0);
         }
 
         @Override
         public void acceptChar(char ch) {
             var target = getTarget();
+            SteamDeckKeyboard.LOGGER.info("acceptChar '{}' -> {}", ch, target != null ? target.getClass().getSimpleName() : "null");
             if (target != null) target.charTyped(ch, 0);
         }
 
