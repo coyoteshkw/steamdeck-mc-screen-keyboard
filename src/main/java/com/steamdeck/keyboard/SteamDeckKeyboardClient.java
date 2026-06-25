@@ -12,7 +12,6 @@ import net.neoforged.fml.config.ModConfig;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
 import net.neoforged.neoforge.common.NeoForge;
-import org.lwjgl.glfw.GLFW;
 
 @Mod(value = SteamDeckKeyboard.MODID, dist = Dist.CLIENT)
 public class SteamDeckKeyboardClient {
@@ -26,8 +25,6 @@ public class SteamDeckKeyboardClient {
     }
 
     private void registerKeyMappings(RegisterKeyMappingsEvent event) {
-        // Use UNIVERSAL so the key is never consumed by GUI text fields.
-        // We handle the "should this key actually toggle?" logic ourselves.
         toggleKeyMapping = new KeyMapping(
             "key.steamdeckkeyboard.toggle",
             net.neoforged.neoforge.client.settings.KeyConflictContext.UNIVERSAL,
@@ -36,6 +33,7 @@ public class SteamDeckKeyboardClient {
             "category.steamdeckkeyboard"
         );
         event.register(toggleKeyMapping);
+        SteamDeckKeyboard.LOGGER.info("Registered toggle key with code: {}", KeyboardConfig.TOGGLE_KEY_CODE.get());
     }
 
     private void onClientTick(ClientTickEvent.Post event) {
@@ -43,7 +41,11 @@ public class SteamDeckKeyboardClient {
         if (mc.player == null || toggleKeyMapping == null) return;
 
         boolean down = toggleKeyMapping.isDown();
+
         if (down && !wasToggleKeyDown) {
+            SteamDeckKeyboard.LOGGER.info("Toggle key pressed. screen={}, isKeyboardOpen={}",
+                mc.screen != null ? mc.screen.getClass().getSimpleName() : "null",
+                KeyboardScreen.isOpen(mc));
             handleTogglePress(mc);
         }
         wasToggleKeyDown = down;
@@ -56,23 +58,33 @@ public class SteamDeckKeyboardClient {
             return;
         }
 
-        // Case 2: No screen — nothing to toggle
-        if (mc.screen == null) return;
+        // Case 2: No screen — open keyboard for chat input (player pressed K in-game)
+        if (mc.screen == null) {
+            // Open chat screen first, then keyboard on top
+            mc.setScreen(new net.minecraft.client.gui.screens.ChatScreen(""));
+            // On next tick the ChatScreen will be open, keyboard will follow via auto-open
+            return;
+        }
 
-        // Case 3: KeyboardScreen itself — safety guard (shouldn't happen, but belt and suspenders)
+        // Case 3: KeyboardScreen itself — safety guard
         if (mc.screen instanceof KeyboardScreen) return;
 
-        // Case 4: An EditBox has focus — let the key pass through as normal text input.
-        // Don't toggle the keyboard; the player is typing.
+        // Case 4: An EditBox has focus — let the key pass through as normal text input
         if (hasFocusedEditBox(mc.screen)) return;
 
         // Case 5: GUI is open but no EditBox has focus (inventory, pause menu, etc.)
-        // Open the keyboard targeting the first available EditBox on the screen.
+        // Find any EditBox on screen, or create a fallback target
         EditBox editBox = KeyboardInputHandler.findFocusedEditBox(mc.screen);
+        InputTarget target;
         if (editBox != null) {
-            InputTarget target = KeyboardInputHandler.createInputTarget(editBox);
-            KeyboardScreen.open(mc.screen, target);
+            target = KeyboardInputHandler.createInputTarget(editBox);
+        } else {
+            // Fallback: create an InputTarget backed by a dummy EditBox
+            // This lets the keyboard appear even when no EditBox is visible.
+            // Characters are buffered until the player focuses a real EditBox.
+            target = new FallbackInputTarget();
         }
+        KeyboardScreen.open(mc.screen, target);
     }
 
     private static boolean hasFocusedEditBox(net.minecraft.client.gui.screens.Screen screen) {
@@ -82,5 +94,22 @@ public class SteamDeckKeyboardClient {
             }
         }
         return false;
+    }
+
+    /**
+     * Fallback InputTarget used when no EditBox is available on the current screen.
+     * Characters are discarded silently. The keyboard is visible but non-functional
+     * until the user opens a screen with an actual EditBox.
+     */
+    private static class FallbackInputTarget implements InputTarget {
+        @Override
+        public void acceptChar(char ch) {
+            // No target EditBox — silently discard
+        }
+
+        @Override
+        public void acceptSpecial(SpecialKey key) {
+            // No target — silently discard
+        }
     }
 }
