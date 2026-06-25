@@ -7,6 +7,12 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import org.jetbrains.annotations.NotNull;
 
+/**
+ * Minimal overlay: just holds a KeyboardWidget and provides drag/close.
+ * Instead of replacing mc.screen, this screen is pushed via setScreen,
+ * but it delegates rendering and input to the backgroundScreen.
+ * Closing simply restores backgroundScreen.
+ */
 public class KeyboardScreen extends Screen {
     private final Screen backgroundScreen;
     private final InputTarget inputTarget;
@@ -14,6 +20,9 @@ public class KeyboardScreen extends Screen {
     private double dragStartX, dragStartY;
     private int dragOffsetX, dragOffsetY;
     private boolean dragging;
+
+    // Shared flag: when a KeyboardScreen is open, other instances know
+    public static KeyboardScreen INSTANCE = null;
 
     public KeyboardScreen(Screen backgroundScreen, InputTarget inputTarget) {
         super(Component.literal("Keyboard Overlay"));
@@ -23,6 +32,7 @@ public class KeyboardScreen extends Screen {
 
     @Override
     protected void init() {
+        INSTANCE = this;
         int kbdW = KeyboardConfig.KEYBOARD_WIDTH.get();
         int kbdH = KeyboardConfig.KEYBOARD_HEIGHT.get();
         if (kbdW <= 0) kbdW = (int) (width * 0.9);
@@ -38,8 +48,8 @@ public class KeyboardScreen extends Screen {
 
     @Override
     public void render(@NotNull GuiGraphics g, int mx, int my, float a) {
+        // Render background screen first, then keyboard on top
         backgroundScreen.render(g, mx, my, a);
-        // Render keyboard on top of background screen
         g.pose().pushPose();
         g.pose().translate(0, 0, 500);
         super.render(g, mx, my, a);
@@ -47,18 +57,13 @@ public class KeyboardScreen extends Screen {
     }
 
     @Override
-    public void renderBackground(@NotNull GuiGraphics g, int mx, int my, float a) {
-        // Don't render dirt background — the background screen handles it
-    }
+    public void renderBackground(@NotNull GuiGraphics g, int mx, int my, float a) {}
 
     @Override
-    public void tick() {
-        backgroundScreen.tick();
-    }
+    public void tick() { backgroundScreen.tick(); }
 
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-        // Forward Enter/Escape to background screen for sending chat / closing
         if (keyCode == InputConstants.KEY_RETURN || keyCode == InputConstants.KEY_ESCAPE) {
             backgroundScreen.keyPressed(keyCode, scanCode, modifiers);
             return true;
@@ -68,18 +73,13 @@ public class KeyboardScreen extends Screen {
 
     @Override
     public boolean mouseClicked(double mx, double my, int button) {
-        // Let child key widgets handle first
-        if (keyboardWidget != null && keyboardWidget.mouseClicked(mx, my, button)) {
-            return true;
-        }
-        // Click on keyboard background (not on a key) — start drag
+        if (keyboardWidget != null && keyboardWidget.mouseClicked(mx, my, button)) return true;
         if (keyboardWidget != null && keyboardWidget.isMouseOver(mx, my)) {
             dragging = true;
             dragStartX = mx; dragStartY = my;
             dragOffsetX = keyboardWidget.getX(); dragOffsetY = keyboardWidget.getY();
             return true;
         }
-        // Click outside keyboard — close it
         onClose();
         return true;
     }
@@ -111,8 +111,15 @@ public class KeyboardScreen extends Screen {
 
     @Override
     public void onClose() {
+        INSTANCE = null;
         SteamDeckKeyboardClient.suppressAutoOpen = true;
         Minecraft.getInstance().setScreen(backgroundScreen);
+    }
+
+    @Override
+    public void removed() {
+        INSTANCE = null;
+        super.removed();
     }
 
     public Screen getBackgroundScreen() { return backgroundScreen; }
