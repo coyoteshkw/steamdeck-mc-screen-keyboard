@@ -14,6 +14,7 @@ import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
 import net.neoforged.neoforge.common.NeoForge;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Mod(value = SteamDeckKeyboard.MODID, dist = Dist.CLIENT)
@@ -49,8 +50,18 @@ public class SteamDeckKeyboardClient {
                 && !suppressAutoOpen) {
             EditBox focused = findFocusedEditBoxRecursive(mc.screen);
             if (focused != null) {
-                SteamDeckKeyboard.LOGGER.info("Auto-open: found focused EditBox on {}", mc.screen.getClass().getSimpleName());
+                SteamDeckKeyboard.LOGGER.info("Auto-open: found focused EditBox '{}' on {}",
+                    focused.getClass().getSimpleName(), mc.screen.getClass().getSimpleName());
                 openKeyboardOnScreen(mc, mc.screen);
+            } else {
+                // Debug: list all EditBox children (focused or not)
+                var allBoxes = findAllEditBoxesRecursive(mc.screen);
+                SteamDeckKeyboard.LOGGER.info("Auto-open check: {} EditBoxes found, none focused. Screen: {}",
+                    allBoxes.size(), mc.screen.getClass().getSimpleName());
+                for (var eb : allBoxes) {
+                    SteamDeckKeyboard.LOGGER.info("  EditBox: {} focused={} visible={}",
+                        eb.getClass().getSimpleName(), eb.isFocused(), eb.visible);
+                }
             }
         }
         if (mc.screen == null) {
@@ -115,6 +126,22 @@ public class SteamDeckKeyboardClient {
             }
         }
         return null;
+    }
+
+    /** Find ALL EditBoxes recursively, for debugging. */
+    private static List<EditBox> findAllEditBoxesRecursive(net.minecraft.client.gui.screens.Screen screen) {
+        List<EditBox> result = new ArrayList<>();
+        if (screen != null) collectEditBoxes(screen.children(), result);
+        return result;
+    }
+
+    private static void collectEditBoxes(List<? extends net.minecraft.client.gui.components.events.GuiEventListener> children, List<EditBox> out) {
+        for (var child : children) {
+            if (child instanceof EditBox editBox) out.add(editBox);
+            if (child instanceof net.minecraft.client.gui.components.events.ContainerEventHandler container) {
+                collectEditBoxes(container.children(), out);
+            }
+        }
     }
 
     /** Find any EditBox recursively (not necessarily focused). */
