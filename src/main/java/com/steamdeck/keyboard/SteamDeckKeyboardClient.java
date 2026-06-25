@@ -20,8 +20,6 @@ import java.util.List;
 public class SteamDeckKeyboardClient {
     private static KeyMapping toggleKeyMapping;
     private static boolean pendingKeyboardOpen = false;
-    private static EditBox lastFocusedEditBox = null;
-    // Prevent re-open right after manual close
     static boolean suppressAutoOpen = false;
 
     public SteamDeckKeyboardClient(IEventBus modEventBus, ModContainer modContainer) {
@@ -45,17 +43,16 @@ public class SteamDeckKeyboardClient {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || toggleKeyMapping == null) return;
 
-        // --- Auto-open: detect newly focused EditBox (only if config enables it) ---
+        // --- Auto-open: detect when any EditBox has focus (only if config enables it) ---
         if (KeyboardConfig.AUTO_OPEN_OTHERS.get()
                 && mc.screen != null && !KeyboardScreen.isOpen(mc) && !(mc.screen instanceof KeyboardScreen)
                 && !suppressAutoOpen) {
             EditBox focused = findFocusedEditBoxRecursive(mc.screen);
-            if (focused != null && focused != lastFocusedEditBox) {
+            if (focused != null) {
                 openKeyboardOnScreen(mc, mc.screen);
             }
-            lastFocusedEditBox = focused;
-        } else if (mc.screen == null) {
-            lastFocusedEditBox = null;
+        }
+        if (mc.screen == null) {
             suppressAutoOpen = false;
         }
 

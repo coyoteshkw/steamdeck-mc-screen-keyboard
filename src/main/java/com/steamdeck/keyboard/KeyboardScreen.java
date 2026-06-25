@@ -41,7 +41,7 @@ public class KeyboardScreen extends Screen {
         backgroundScreen.render(g, mx, my, a);
         // Render keyboard on top of background screen
         g.pose().pushPose();
-        g.pose().translate(0, 0, 200);
+        g.pose().translate(0, 0, 500);
         super.render(g, mx, my, a);
         g.pose().popPose();
     }
