@@ -1,5 +1,6 @@
 package com.steamdeck.keyboard;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
@@ -38,42 +39,45 @@ public class KeyboardScreen extends Screen {
     @Override
     public void render(@NotNull GuiGraphics g, int mx, int my, float a) {
         backgroundScreen.render(g, mx, my, a);
-        g.pose().pushPose();
-        g.pose().translate(0, 0, 100);
         super.render(g, mx, my, a);
-        g.pose().popPose();
     }
 
     @Override
     public void renderBackground(@NotNull GuiGraphics g, int mx, int my, float a) {
-        // Don't render default background - the background screen handles it
+        // Don't render dirt background — the background screen handles it
     }
 
     @Override
-    public void tick() { backgroundScreen.tick(); super.tick(); }
+    public void tick() {
+        backgroundScreen.tick();
+    }
+
+    @Override
+    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        // Forward Enter/Escape to background screen for sending chat / closing
+        if (keyCode == InputConstants.KEY_RETURN || keyCode == InputConstants.KEY_ESCAPE) {
+            backgroundScreen.keyPressed(keyCode, scanCode, modifiers);
+            return true;
+        }
+        return backgroundScreen.keyPressed(keyCode, scanCode, modifiers) || super.keyPressed(keyCode, scanCode, modifiers);
+    }
 
     @Override
     public boolean mouseClicked(double mx, double my, int button) {
-        // Let child widgets (keys) handle the click first
-        if (super.mouseClicked(mx, my, button)) return true;
-
+        // Let child key widgets handle first
+        if (keyboardWidget != null && keyboardWidget.mouseClicked(mx, my, button)) {
+            return true;
+        }
         // Click on keyboard background (not on a key) — start drag
-        if (keyboardWidget != null && keyboardWidget.isMouseOver(mx, my)
-                && !isClickOnKeyWidget(mx, my)) {
+        if (keyboardWidget != null && keyboardWidget.isMouseOver(mx, my)) {
             dragging = true;
             dragStartX = mx; dragStartY = my;
             dragOffsetX = keyboardWidget.getX(); dragOffsetY = keyboardWidget.getY();
             return true;
         }
-        return false;
-    }
-
-    private boolean isClickOnKeyWidget(double mx, double my) {
-        if (keyboardWidget == null) return false;
-        for (var child : keyboardWidget.children()) {
-            if (child.isMouseOver(mx, my)) return true;
-        }
-        return false;
+        // Click outside keyboard — close it
+        onClose();
+        return true;
     }
 
     @Override

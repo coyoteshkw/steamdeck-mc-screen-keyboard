@@ -28,19 +28,46 @@ public class KeyboardWidget extends AbstractWidget implements ContainerEventHand
         this.inputTarget = inputTarget;
         this.onClose = onClose;
         this.keys = new ArrayList<>();
-        float uw = (float) w / KeyboardLayout.LAYOUT_WIDTH;
-        float kh = (float) h / KeyboardLayout.ROWS.size();
-        float yPos = y;
+        rebuildKeys();
+    }
+
+    private void rebuildKeys() {
+        keys.clear();
+        float uw = (float) getWidth() / KeyboardLayout.LAYOUT_WIDTH;
+        float kh = (float) getHeight() / KeyboardLayout.ROWS.size();
+        float relY = 0;
         for (List<KeyboardLayout.KeyDef> row : KeyboardLayout.ROWS) {
-            float xPos = x;
+            float relX = 0;
             for (KeyboardLayout.KeyDef def : row) {
                 float kw = def.width() * uw;
-                keys.add(new KeyWidget((int) xPos, (int) yPos, (int) kw, (int) kh, def,
+                keys.add(new KeyWidget((int) relX, (int) relY, (int) kw, (int) kh, def,
                     () -> onKeyPress(def)));
-                xPos += kw;
+                relX += kw;
             }
-            yPos += kh;
+            relY += kh;
         }
+        updateAbsPositions();
+    }
+
+    /** Updates all key absolute positions based on current widget position */
+    public void updateAbsPositions() {
+        int px = getX();
+        int py = getY();
+        for (KeyWidget k : keys) {
+            k.updateAbsolutePosition(px, py);
+        }
+    }
+
+    @Override
+    public void setX(int x) {
+        super.setX(x);
+        updateAbsPositions();
+    }
+
+    @Override
+    public void setY(int y) {
+        super.setY(y);
+        updateAbsPositions();
     }
 
     private void onKeyPress(KeyboardLayout.KeyDef def) {
@@ -66,6 +93,7 @@ public class KeyboardWidget extends AbstractWidget implements ContainerEventHand
 
     public void setShifted(boolean s) { shifted = s; }
     private void setShiftLocked(boolean l) { shiftLocked = l; }
+    public List<KeyWidget> getKeys() { return keys; }
 
     @Override
     protected void renderWidget(@NotNull GuiGraphics g, int mx, int my, float a) {
@@ -85,8 +113,13 @@ public class KeyboardWidget extends AbstractWidget implements ContainerEventHand
         else focusedKey = null;
     }
     @Override public @Nullable net.minecraft.client.gui.ComponentPath nextFocusPath(FocusNavigationEvent e) { return ContainerEventHandler.super.nextFocusPath(e); }
-    @Override public boolean mouseClicked(double mx, double my, int button) { return ContainerEventHandler.super.mouseClicked(mx, my, button); }
-    @Override public boolean mouseReleased(double mx, double my, int button) { return ContainerEventHandler.super.mouseReleased(mx, my, button); }
-    @Override public boolean mouseDragged(double mx, double my, int button, double dx, double dy) { return ContainerEventHandler.super.mouseDragged(mx, my, button, dx, dy); }
+    @Override public boolean mouseClicked(double mx, double my, int button) {
+        for (KeyWidget k : keys) { if (k.mouseClickedAbs(mx, my, button)) return true; }
+        return false;
+    }
+    @Override public boolean mouseReleased(double mx, double my, int button) {
+        for (KeyWidget k : keys) { k.mouseReleasedAbs(mx, my, button); }
+        return false;
+    }
     @Override protected void updateWidgetNarration(NarrationElementOutput o) {}
 }

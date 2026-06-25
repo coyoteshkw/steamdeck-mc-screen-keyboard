@@ -1,5 +1,9 @@
 package com.steamdeck.keyboard;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -7,6 +11,10 @@ import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.network.chat.Component;
 import org.jetbrains.annotations.NotNull;
 
+/**
+ * Single key widget. Coordinates are relative to the parent KeyboardWidget.
+ * Rendering is done via renderRelative() which takes the parent's absolute position.
+ */
 public class KeyWidget extends AbstractWidget {
     private static final int COLOR_BG = 0xC0444444;
     private static final int COLOR_BG_HOVER = 0xC0666666;
@@ -17,20 +25,34 @@ public class KeyWidget extends AbstractWidget {
     private final Runnable onPress;
     private boolean pressed;
 
+    // Absolute screen position set by parent during layout
+    private int absX, absY;
+
     public KeyWidget(int x, int y, int width, int height, KeyboardLayout.KeyDef keyDef, Runnable onPress) {
         super(x, y, width, height, Component.empty());
         this.keyDef = keyDef;
         this.onPress = onPress;
+        this.absX = x;
+        this.absY = y;
     }
 
     public KeyboardLayout.KeyType getKeyType() { return keyDef.keyType(); }
 
+    /** Called by parent to update absolute position after drag */
+    public void updateAbsolutePosition(int parentX, int parentY) {
+        this.absX = parentX + getX();
+        this.absY = parentY + getY();
+    }
+
+    public int getAbsX() { return absX; }
+    public int getAbsY() { return absY; }
+
     @Override
     protected void renderWidget(@NotNull GuiGraphics g, int mx, int my, float a) {
-        int bg = pressed ? COLOR_BG_PRESSED : (isHovered() ? COLOR_BG_HOVER : COLOR_BG);
-        g.fill(getX() + 1, getY() + 1, getX() + getWidth() - 1, getY() + getHeight() - 1, bg);
-        g.fill(getX() + 1, getY() + 1, getX() + getWidth() - 1, getY() + 2, 0x40FFFFFF);
-        g.fill(getX() + 1, getY() + getHeight() - 2, getX() + getWidth() - 1, getY() + getHeight() - 1, 0x40000000);
+        int bg = pressed ? COLOR_BG_PRESSED : (isMouseOverAbs(mx, my) ? COLOR_BG_HOVER : COLOR_BG);
+        g.fill(absX + 1, absY + 1, absX + getWidth() - 1, absY + getHeight() - 1, bg);
+        g.fill(absX + 1, absY + 1, absX + getWidth() - 1, absY + 2, 0x40FFFFFF);
+        g.fill(absX + 1, absY + getHeight() - 2, absX + getWidth() - 1, absY + getHeight() - 1, 0x40000000);
     }
 
     public void renderLabel(GuiGraphics g, boolean shifted) {
@@ -43,19 +65,44 @@ public class KeyWidget extends AbstractWidget {
             case CLOSE -> "\u00D7";
         };
         int tw = Minecraft.getInstance().font.width(label);
-        int tx = getX() + (getWidth() - tw) / 2;
-        int ty = getY() + (getHeight() - 8) / 2 + (pressed ? 1 : 0);
+        int tx = absX + (getWidth() - tw) / 2;
+        int ty = absY + (getHeight() - 8) / 2 + (pressed ? 1 : 0);
         g.drawString(Minecraft.getInstance().font, label, tx, ty, COLOR_TEXT);
     }
 
-    @Override
-    public boolean mouseClicked(double mx, double my, int button) {
-        if (isMouseOver(mx, my) && isActive()) { pressed = true; onPress.run(); return true; }
+    public boolean isMouseOverAbs(double mx, double my) {
+        return mx >= absX && mx < absX + getWidth() && my >= absY && my < absY + getHeight();
+    }
+
+    public boolean mouseClickedAbs(double mx, double my, int button) {
+        if (isMouseOverAbs(mx, my) && isActive()) {
+            pressed = true;
+            onPress.run();
+            return true;
+        }
+        return false;
+    }
+
+    public boolean mouseReleasedAbs(double mx, double my, int button) {
+        pressed = false;
         return false;
     }
 
     @Override
-    public boolean mouseReleased(double mx, double my, int button) { pressed = false; return super.mouseReleased(mx, my, button); }
+    public boolean mouseClicked(double mx, double my, int button) {
+        if (isMouseOverAbs(mx, my) && isActive()) {
+            pressed = true;
+            onPress.run();
+            return true;
+        }
+        return false;
+    }
+
+    @Override
+    public boolean mouseReleased(double mx, double my, int button) {
+        pressed = false;
+        return super.mouseReleased(mx, my, button);
+    }
 
     @Override
     protected void updateWidgetNarration(NarrationElementOutput o) {}
