@@ -10,42 +10,7 @@ import java.util.List;
 
 public class KeyboardInputHandler {
 
-    public static InputTarget createInputTarget(EditBox editBox) {
-        return new InputTarget() {
-            @Override
-            public void acceptChar(char ch) {
-                editBox.charTyped(ch, 0);
-            }
-            @Override
-            public void acceptSpecial(SpecialKey key) {
-                switch (key) {
-                    case BACKSPACE -> {
-                        String val = editBox.getValue();
-                        if (!val.isEmpty()) editBox.setValue(val.substring(0, val.length() - 1));
-                    }
-                    case ENTER -> {
-                        Minecraft mc = Minecraft.getInstance();
-                        if (mc.screen instanceof KeyboardScreen ks) {
-                            ks.getBackgroundScreen().keyPressed(
-                                com.mojang.blaze3d.platform.InputConstants.KEY_RETURN, 0, 0);
-                        } else if (mc.screen != null) {
-                            mc.screen.keyPressed(
-                                com.mojang.blaze3d.platform.InputConstants.KEY_RETURN, 0, 0);
-                        }
-                    }
-                }
-            }
-        };
-    }
-
-    public static void openKeyboardForScreen(Screen screen) {
-        EditBox editBox = findAnyEditBox(screen);
-        if (editBox != null) {
-            KeyboardScreen.open(screen, createInputTarget(editBox));
-        }
-    }
-
-    private static EditBox findAnyEditBox(Screen screen) {
+    public static EditBox findAnyEditBox(Screen screen) {
         if (screen instanceof ChatScreen chatScreen) {
             try {
                 var field = ChatScreen.class.getDeclaredField("input");
@@ -64,6 +29,37 @@ public class KeyboardInputHandler {
             if (child instanceof EditBox eb) out.add(eb);
             if (child instanceof net.minecraft.client.gui.components.events.ContainerEventHandler ce) {
                 collectBoxes(ce.children(), out);
+            }
+        }
+    }
+
+    /**
+     * Simple input target that uses EditBox directly.
+     */
+    public static class SimpleInputTarget implements InputTarget {
+        private final EditBox editBox;
+
+        public SimpleInputTarget(EditBox editBox) {
+            this.editBox = editBox;
+        }
+
+        @Override
+        public void acceptChar(char ch) {
+            if (editBox != null) editBox.charTyped(ch, 0);
+        }
+
+        @Override
+        public void acceptSpecial(SpecialKey key) {
+            if (editBox == null) return;
+            switch (key) {
+                case BACKSPACE -> {
+                    String val = editBox.getValue();
+                    if (!val.isEmpty()) editBox.setValue(val.substring(0, val.length() - 1));
+                }
+                case ENTER -> {
+                    editBox.keyPressed(
+                        com.mojang.blaze3d.platform.InputConstants.KEY_RETURN, 0, 0);
+                }
             }
         }
     }

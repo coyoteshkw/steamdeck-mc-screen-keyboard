@@ -9,6 +9,7 @@ displayName="${mod_name}"
 description='''
 A touch-screen virtual keyboard for Steam Deck.
 Press the configured key (default K) to toggle the keyboard overlay.
+Click the keyboard button in inventory screens to open it there.
 '''
 
 [[dependencies.${mod_id}]]
