@@ -4,6 +4,7 @@ import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.gui.screens.ChatScreen;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
@@ -17,6 +18,8 @@ import net.neoforged.neoforge.common.NeoForge;
 public class SteamDeckKeyboardClient {
     private static KeyMapping toggleKeyMapping;
     private static boolean wasToggleKeyDown = false;
+    // When true, on next tick the keyboard will be opened on top of the current screen
+    private static boolean pendingKeyboardOpen = false;
 
     public SteamDeckKeyboardClient(IEventBus modEventBus, ModContainer modContainer) {
         modContainer.registerConfig(ModConfig.Type.CLIENT, KeyboardConfig.SPEC);
@@ -33,15 +36,21 @@ public class SteamDeckKeyboardClient {
             "category.steamdeckkeyboard"
         );
         event.register(toggleKeyMapping);
-        SteamDeckKeyboard.LOGGER.info("Registered toggle key with code: {}", KeyboardConfig.TOGGLE_KEY_CODE.get());
     }
 
     private void onClientTick(ClientTickEvent.Post event) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || toggleKeyMapping == null) return;
 
-        boolean down = toggleKeyMapping.isDown();
+        // Handle pending keyboard open (delayed from previous tick)
+        if (pendingKeyboardOpen) {
+            pendingKeyboardOpen = false;
+            if (mc.screen != null && !(mc.screen instanceof KeyboardScreen) && !KeyboardScreen.isOpen(mc)) {
+                openKeyboardOnScreen(mc, mc.screen);
+            }
+        }
 
+        boolean down = toggleKeyMapping.isDown();
         if (down && !wasToggleKeyDown) {
             SteamDeckKeyboard.LOGGER.info("Toggle key pressed. screen={}, isKeyboardOpen={}",
                 mc.screen != null ? mc.screen.getClass().getSimpleName() : "null",
@@ -52,39 +61,40 @@ public class SteamDeckKeyboardClient {
     }
 
     private void handleTogglePress(Minecraft mc) {
-        // Case 1: Keyboard is open — close it unconditionally
+        // Keyboard is already open — close it
         if (KeyboardScreen.isOpen(mc)) {
             mc.setScreen(((KeyboardScreen) mc.screen).getBackgroundScreen());
             return;
         }
 
-        // Case 2: No screen — open keyboard for chat input (player pressed K in-game)
+        // In-game, no screen — open chat + keyboard
         if (mc.screen == null) {
-            // Open chat screen first, then keyboard on top
-            mc.setScreen(new net.minecraft.client.gui.screens.ChatScreen(""));
-            // On next tick the ChatScreen will be open, keyboard will follow via auto-open
+            // Set pending flag: keyboard will open on next tick after ChatScreen is active
+            pendingKeyboardOpen = true;
+            mc.setScreen(new ChatScreen(""));
             return;
         }
 
-        // Case 3: KeyboardScreen itself — safety guard
+        // Safety
         if (mc.screen instanceof KeyboardScreen) return;
 
-        // Case 4: An EditBox has focus — let the key pass through as normal text input
+        // EditBox has focus — let K pass through as typing
         if (hasFocusedEditBox(mc.screen)) return;
 
-        // Case 5: GUI is open but no EditBox has focus (inventory, pause menu, etc.)
-        // Find any EditBox on screen, or create a fallback target
-        EditBox editBox = KeyboardInputHandler.findFocusedEditBox(mc.screen);
+        // Any other GUI — open keyboard directly
+        openKeyboardOnScreen(mc, mc.screen);
+    }
+
+    private void openKeyboardOnScreen(Minecraft mc, net.minecraft.client.gui.screens.Screen screen) {
+        EditBox editBox = findAnyEditBox(screen);
         InputTarget target;
         if (editBox != null) {
             target = KeyboardInputHandler.createInputTarget(editBox);
         } else {
-            // Fallback: create an InputTarget backed by a dummy EditBox
-            // This lets the keyboard appear even when no EditBox is visible.
-            // Characters are buffered until the player focuses a real EditBox.
             target = new FallbackInputTarget();
         }
-        KeyboardScreen.open(mc.screen, target);
+        SteamDeckKeyboard.LOGGER.info("Opening keyboard on {}", screen.getClass().getSimpleName());
+        KeyboardScreen.open(screen, target);
     }
 
     private static boolean hasFocusedEditBox(net.minecraft.client.gui.screens.Screen screen) {
@@ -97,19 +107,31 @@ public class SteamDeckKeyboardClient {
     }
 
     /**
-     * Fallback InputTarget used when no EditBox is available on the current screen.
-     * Characters are discarded silently. The keyboard is visible but non-functional
-     * until the user opens a screen with an actual EditBox.
+     * Find any EditBox on the screen, focused or not.
      */
+    private static EditBox findAnyEditBox(net.minecraft.client.gui.screens.Screen screen) {
+        // ChatScreen has a known field
+        if (screen instanceof ChatScreen chatScreen) {
+            try {
+                var field = ChatScreen.class.getDeclaredField("input");
+                field.setAccessible(true);
+                return (EditBox) field.get(chatScreen);
+            } catch (Exception ignored) {}
+        }
+        // Scan children
+        for (var child : screen.children()) {
+            if (child instanceof EditBox editBox) {
+                return editBox;
+            }
+        }
+        return null;
+    }
+
     private static class FallbackInputTarget implements InputTarget {
         @Override
-        public void acceptChar(char ch) {
-            // No target EditBox — silently discard
-        }
+        public void acceptChar(char ch) {}
 
         @Override
-        public void acceptSpecial(SpecialKey key) {
-            // No target — silently discard
-        }
+        public void acceptSpecial(SpecialKey key) {}
     }
 }
