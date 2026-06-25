@@ -11,8 +11,13 @@ import java.util.List;
 
 public class KeyboardInputHandler {
 
+    private static boolean jeiLookupAttempted = false;
+    private static Field jeiSearchField = null;
+    private static Object jeiRuntime = null;
+
     public static List<EditBox> findAllEditBoxes(Screen screen) {
         List<EditBox> result = new ArrayList<>();
+
         if (screen instanceof ChatScreen chatScreen) {
             try {
                 var field = ChatScreen.class.getDeclaredField("input");
@@ -22,13 +27,47 @@ public class KeyboardInputHandler {
             } catch (Exception ignored) {}
         }
 
-        // Try to find JEI search box via its internal IngredientFilter
-        EditBox jeiBox = findJeiSearchBox();
-        if (jeiBox != null) result.add(jeiBox);
+        // Lazy-load JEI search box (only try once)
+        if (!jeiLookupAttempted) {
+            jeiLookupAttempted = true;
+            try {
+                Class<?> internalClass = Class.forName("mezz.jei.common.Internal");
+                Field rf = internalClass.getDeclaredField("runtime");
+                rf.setAccessible(true);
+                jeiRuntime = rf.get(null);
+                if (jeiRuntime != null) {
+                    var m = jeiRuntime.getClass().getMethod("getIngredientFilter");
+                    Object filter = m.invoke(jeiRuntime);
+                    if (filter != null) {
+                        jeiSearchField = findField(filter.getClass(), "searchField");
+                        if (jeiSearchField != null) jeiSearchField.setAccessible(true);
+                    }
+                }
+            } catch (Exception e) {
+                SteamDeckKeyboard.LOGGER.debug("JEI reflection setup failed: {}", e.toString());
+            }
+        }
+
+        // Try to get current JEI search box instance
+        if (jeiRuntime != null && jeiSearchField != null) {
+            try {
+                var m = jeiRuntime.getClass().getMethod("getIngredientFilter");
+                Object filter = m.invoke(jeiRuntime);
+                if (filter != null) {
+                    Object value = jeiSearchField.get(filter);
+                    if (value instanceof EditBox eb) result.add(eb);
+                }
+            } catch (Exception ignored) {}
+        }
 
         // Try EMI search box
-        EditBox emiBox = findEmiSearchBox();
-        if (emiBox != null) result.add(emiBox);
+        try {
+            Class<?> emiClass = Class.forName("dev.emi.emi.screen.EmiScreenManager");
+            Field sf = emiClass.getDeclaredField("search");
+            sf.setAccessible(true);
+            Object search = sf.get(null);
+            if (search instanceof EditBox eb) result.add(eb);
+        } catch (Exception ignored) {}
 
         if (screen != null) {
             collectBoxes(screen.children(), result);
@@ -36,60 +75,11 @@ public class KeyboardInputHandler {
         return result;
     }
 
-    /**
-     * Access JEI's internal IngredientFilter to get its search EditBox.
-     * JEI stores it as IngredientFilter -> searchField (GuiTextFieldFilter extends EditBox).
-     */
-    private static EditBox findJeiSearchBox() {
-        try {
-            // JEI's IngredientFilter is usually accessed via the runtime
-            // Try: mezz.jei.common.InternalAccess -> runtime -> IngredientFilter
-            Class<?> internalClass = Class.forName("mezz.jei.common.Internal");
-            Field runtimeField = internalClass.getDeclaredField("runtime");
-            runtimeField.setAccessible(true);
-            Object runtime = runtimeField.get(null);
-            if (runtime == null) return null;
-
-            // runtime.getIngredientFilter()
-            var getFilterMethod = runtime.getClass().getMethod("getIngredientFilter");
-            Object filter = getFilterMethod.invoke(runtime);
-            if (filter == null) return null;
-
-            // IngredientFilter has a field searchField of type GuiTextFieldFilter
-            Field searchField = findField(filter.getClass(), "searchField");
-            if (searchField != null) {
-                searchField.setAccessible(true);
-                Object value = searchField.get(filter);
-                if (value instanceof EditBox eb) return eb;
-            }
-        } catch (Exception e) {
-            // JEI not installed or API changed — that's fine
-        }
-        return null;
-    }
-
-    private static EditBox findEmiSearchBox() {
-        try {
-            // EMI: dev.emi.emi.screen.EmiScreenManager -> search field
-            Class<?> screenMgrClass = Class.forName("dev.emi.emi.screen.EmiScreenManager");
-            Field searchField = screenMgrClass.getDeclaredField("search");
-            searchField.setAccessible(true);
-            Object search = searchField.get(null);
-            if (search instanceof EditBox eb) return eb;
-        } catch (Exception e) {
-            // EMI not installed
-        }
-        return null;
-    }
-
     private static Field findField(Class<?> clazz, String name) {
         Class<?> current = clazz;
         while (current != null) {
-            try {
-                return current.getDeclaredField(name);
-            } catch (NoSuchFieldException e) {
-                current = current.getSuperclass();
-            }
+            try { return current.getDeclaredField(name); }
+            catch (NoSuchFieldException e) { current = current.getSuperclass(); }
         }
         return null;
     }
@@ -113,7 +103,6 @@ public class KeyboardInputHandler {
         private EditBox getTarget() {
             var all = findAllEditBoxes(screen);
             for (var eb : all) { if (eb.isFocused()) return eb; }
-            // Prefer JEI/EMI search boxes over vanilla ones
             for (var eb : all) {
                 String name = eb.getClass().getSimpleName();
                 if (name.contains("Filter") || name.contains("Search") || name.contains("search")) return eb;
