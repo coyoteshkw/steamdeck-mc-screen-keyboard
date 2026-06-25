@@ -124,13 +124,12 @@ public class SteamDeckKeyboardClient {
     private void openKeyboard(net.minecraft.client.gui.screens.Screen screen) {
         if (activeKeyboard != null) closeKeyboard();
 
-        var editBox = KeyboardInputHandler.findAnyEditBox(screen);
-        SteamDeckKeyboard.LOGGER.info("Opening keyboard on {}, found EditBox: {}",
-            screen.getClass().getSimpleName(),
-            editBox != null ? editBox.getClass().getSimpleName() : "null");
-        activeInputTarget = new KeyboardInputHandler.SimpleInputTarget(editBox);
+        activeInputTarget = new KeyboardInputHandler.SimpleInputTarget(screen);
         activeKeyboard = createKeyboardWidget(screen, activeInputTarget);
         keyboardHostScreen = screen;
+        SteamDeckKeyboard.LOGGER.info("Opening keyboard on {}, {} EditBoxes found",
+            screen.getClass().getSimpleName(),
+            KeyboardInputHandler.findAllEditBoxes(screen).size());
     }
 
     private void closeKeyboard() {

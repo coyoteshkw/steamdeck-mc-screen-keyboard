@@ -4,24 +4,31 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.ChatScreen;
 import net.minecraft.client.gui.screens.Screen;
+import net.neoforged.neoforge.client.event.ScreenEvent;
+import net.neoforged.neoforge.common.NeoForge;
 
 import java.util.ArrayList;
 import java.util.List;
 
 public class KeyboardInputHandler {
 
-    public static EditBox findAnyEditBox(Screen screen) {
+    /**
+     * Find ALL EditBoxes on the given screen, recursively.
+     */
+    public static List<EditBox> findAllEditBoxes(Screen screen) {
+        List<EditBox> result = new ArrayList<>();
         if (screen instanceof ChatScreen chatScreen) {
             try {
                 var field = ChatScreen.class.getDeclaredField("input");
                 field.setAccessible(true);
-                return (EditBox) field.get(chatScreen);
+                var eb = (EditBox) field.get(chatScreen);
+                if (eb != null) result.add(eb);
             } catch (Exception ignored) {}
         }
-        if (screen == null) return null;
-        var boxes = new ArrayList<EditBox>();
-        collectBoxes(screen.children(), boxes);
-        return boxes.isEmpty() ? null : boxes.get(0);
+        if (screen != null) {
+            collectBoxes(screen.children(), result);
+        }
+        return result;
     }
 
     private static void collectBoxes(List<? extends net.minecraft.client.gui.components.events.GuiEventListener> children, List<EditBox> out) {
@@ -34,31 +41,51 @@ public class KeyboardInputHandler {
     }
 
     /**
-     * Simple input target that uses EditBox directly.
+     * Find the currently FOCUSED EditBox from all available ones.
      */
-    public static class SimpleInputTarget implements InputTarget {
-        private final EditBox editBox;
+    public static EditBox findFocusedEditBox(Screen screen) {
+        for (var eb : findAllEditBoxes(screen)) {
+            if (eb.isFocused()) return eb;
+        }
+        // Fallback: return first one if none is focused
+        var all = findAllEditBoxes(screen);
+        return all.isEmpty() ? null : all.get(0);
+    }
 
-        public SimpleInputTarget(EditBox editBox) {
-            this.editBox = editBox;
+    public static class SimpleInputTarget implements InputTarget {
+        private final List<EditBox> allEditBoxes;
+        private final Screen screen;
+
+        public SimpleInputTarget(Screen screen) {
+            this.screen = screen;
+            this.allEditBoxes = findAllEditBoxes(screen);
+        }
+
+        private EditBox getTarget() {
+            // Always try to find the currently focused one first
+            for (var eb : allEditBoxes) {
+                if (eb.isFocused()) return eb;
+            }
+            return allEditBoxes.isEmpty() ? null : allEditBoxes.get(0);
         }
 
         @Override
         public void acceptChar(char ch) {
-            if (editBox != null) editBox.charTyped(ch, 0);
+            var target = getTarget();
+            if (target != null) target.charTyped(ch, 0);
         }
 
         @Override
         public void acceptSpecial(SpecialKey key) {
-            if (editBox == null) return;
+            var target = getTarget();
+            if (target == null) return;
             switch (key) {
                 case BACKSPACE -> {
-                    String val = editBox.getValue();
-                    if (!val.isEmpty()) editBox.setValue(val.substring(0, val.length() - 1));
+                    String val = target.getValue();
+                    if (!val.isEmpty()) target.setValue(val.substring(0, val.length() - 1));
                 }
                 case ENTER -> {
-                    editBox.keyPressed(
-                        com.mojang.blaze3d.platform.InputConstants.KEY_RETURN, 0, 0);
+                    target.keyPressed(com.mojang.blaze3d.platform.InputConstants.KEY_RETURN, 0, 0);
                 }
             }
         }
