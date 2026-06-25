@@ -125,6 +125,9 @@ public class SteamDeckKeyboardClient {
         if (activeKeyboard != null) closeKeyboard();
 
         var editBox = KeyboardInputHandler.findAnyEditBox(screen);
+        SteamDeckKeyboard.LOGGER.info("Opening keyboard on {}, found EditBox: {}",
+            screen.getClass().getSimpleName(),
+            editBox != null ? editBox.getClass().getSimpleName() : "null");
         activeInputTarget = new KeyboardInputHandler.SimpleInputTarget(editBox);
         activeKeyboard = createKeyboardWidget(screen, activeInputTarget);
         keyboardHostScreen = screen;
