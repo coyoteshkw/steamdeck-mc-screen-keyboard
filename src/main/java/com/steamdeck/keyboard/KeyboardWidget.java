@@ -22,6 +22,9 @@ public class KeyboardWidget extends AbstractWidget implements ContainerEventHand
     private boolean shiftLocked;
     private @Nullable KeyWidget focusedKey;
     private boolean dragging;
+    private double dragOffsetX;
+    private double dragOffsetY;
+    private boolean moving;
 
     public KeyboardWidget(int x, int y, int w, int h, InputTarget inputTarget, Runnable onClose) {
         super(x, y, w, h, Component.literal("Keyboard"));
@@ -87,6 +90,7 @@ public class KeyboardWidget extends AbstractWidget implements ContainerEventHand
                 else if (!shiftLocked) setShiftLocked(true);
                 else { setShifted(false); setShiftLocked(false); }
             }
+            case TAB -> inputTarget.acceptSpecial(InputTarget.SpecialKey.TAB);
             case CLOSE -> onClose.run();
         }
     }
@@ -103,6 +107,32 @@ public class KeyboardWidget extends AbstractWidget implements ContainerEventHand
         for (KeyWidget k : keys) k.renderLabel(g, shifted);
     }
 
+    public boolean startMoving(double mouseX, double mouseY) {
+        if (isMouseOver(mouseX, mouseY)) {
+            // check no key is under the mouse
+            for (KeyWidget k : keys) {
+                if (k.isMouseOverAbs(mouseX, mouseY)) return false;
+            }
+            moving = true;
+            dragOffsetX = mouseX - getX();
+            dragOffsetY = mouseY - getY();
+            return true;
+        }
+        return false;
+    }
+
+    public void onDrag(double mouseX, double mouseY) {
+        if (!moving) return;
+        setX((int) (mouseX - dragOffsetX));
+        setY((int) (mouseY - dragOffsetY));
+    }
+
+    public void stopMoving() {
+        moving = false;
+    }
+
+    public boolean isMoving() { return moving; }
+
     @Override public @NotNull List<KeyWidget> children() { return Collections.unmodifiableList(keys); }
     @Override public boolean isDragging() { return dragging; }
     @Override public void setDragging(boolean d) { dragging = d; }
@@ -115,10 +145,11 @@ public class KeyboardWidget extends AbstractWidget implements ContainerEventHand
     @Override public @Nullable net.minecraft.client.gui.ComponentPath nextFocusPath(FocusNavigationEvent e) { return ContainerEventHandler.super.nextFocusPath(e); }
     @Override public boolean mouseClicked(double mx, double my, int button) {
         for (KeyWidget k : keys) { if (k.mouseClickedAbs(mx, my, button)) return true; }
-        return false;
+        return startMoving(mx, my);
     }
     @Override public boolean mouseReleased(double mx, double my, int button) {
         for (KeyWidget k : keys) { k.mouseReleasedAbs(mx, my, button); }
+        stopMoving();
         return false;
     }
     @Override protected void updateWidgetNarration(NarrationElementOutput o) {}

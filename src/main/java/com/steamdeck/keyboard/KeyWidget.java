@@ -8,7 +8,9 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
+import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.network.chat.Component;
+import net.minecraft.sounds.SoundEvents;
 import org.jetbrains.annotations.NotNull;
 
 /**
@@ -62,6 +64,7 @@ public class KeyWidget extends AbstractWidget {
             case SPACE -> "";
             case BACKSPACE -> "\u2190";
             case ENTER -> "\u21B5";
+            case TAB -> "\u21E5";
             case CLOSE -> "\u00D7";
         };
         int tw = Minecraft.getInstance().font.width(label);
@@ -77,6 +80,7 @@ public class KeyWidget extends AbstractWidget {
     public boolean mouseClickedAbs(double mx, double my, int button) {
         if (isMouseOverAbs(mx, my) && isActive()) {
             pressed = true;
+            Minecraft.getInstance().getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F));
             onPress.run();
             return true;
         }
@@ -92,6 +96,7 @@ public class KeyWidget extends AbstractWidget {
     public boolean mouseClicked(double mx, double my, int button) {
         if (isMouseOverAbs(mx, my) && isActive()) {
             pressed = true;
+            Minecraft.getInstance().getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F));
             onPress.run();
             return true;
         }

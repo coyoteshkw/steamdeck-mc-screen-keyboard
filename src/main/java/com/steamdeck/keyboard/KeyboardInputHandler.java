@@ -11,8 +11,9 @@ import java.util.List;
 public class KeyboardInputHandler {
 
     private static boolean jeiInitDone = false;
-    private static java.lang.reflect.Method jeiGetFilterMethod = null;
+    private static java.lang.reflect.Method jeiGetOverlayMethod = null;
     private static Field jeiSearchField = null;
+    private static Class<?> jeiInternalClass = null;
 
     public static List<EditBox> findAllEditBoxes(Screen screen) {
         List<EditBox> result = new ArrayList<>();
@@ -26,33 +27,16 @@ public class KeyboardInputHandler {
             } catch (Exception ignored) {}
         }
 
-        // JEI search box via reflection (one-time setup)
-        if (!jeiInitDone) {
-            jeiInitDone = true;
-            try {
-                Class<?> internalClass = Class.forName("mezz.jei.common.Internal");
-                Object runtime = internalClass.getMethod("getJeiRuntime").invoke(null);
-                if (runtime != null) {
-                    jeiGetFilterMethod = runtime.getClass().getMethod("getIngredientFilter");
-                    Object filter = jeiGetFilterMethod.invoke(runtime);
-                    if (filter != null) {
-                        jeiSearchField = findField(filter.getClass(), "searchField");
-                        if (jeiSearchField != null) jeiSearchField.setAccessible(true);
-                    }
-                }
-            } catch (Exception e) {
-                SteamDeckKeyboard.LOGGER.debug("JEI init: {}", e.toString());
-            }
-        }
+        // JEI search box via reflection: Internal -> getJeiRuntime() -> getIngredientListOverlay() -> searchField
+        initJei();
 
-        if (jeiGetFilterMethod != null && jeiSearchField != null) {
+        if (jeiInternalClass != null && jeiGetOverlayMethod != null && jeiSearchField != null) {
             try {
-                Class<?> internalClass = Class.forName("mezz.jei.common.Internal");
-                Object runtime = internalClass.getMethod("getJeiRuntime").invoke(null);
+                Object runtime = jeiInternalClass.getMethod("getJeiRuntime").invoke(null);
                 if (runtime != null) {
-                    Object filter = jeiGetFilterMethod.invoke(runtime);
-                    if (filter != null) {
-                        Object val = jeiSearchField.get(filter);
+                    Object overlay = jeiGetOverlayMethod.invoke(runtime);
+                    if (overlay != null) {
+                        Object val = jeiSearchField.get(overlay);
                         if (val instanceof EditBox eb) result.add(eb);
                     }
                 }
@@ -70,15 +54,50 @@ public class KeyboardInputHandler {
 
         if (screen != null) {
             collectBoxes(screen.children(), result);
+            for (var r : screen.renderables) {
+                if (r instanceof EditBox eb && !result.contains(eb)) result.add(eb);
+                if (r instanceof net.minecraft.client.gui.components.events.ContainerEventHandler ce) {
+                    collectBoxes(ce.children(), result);
+                }
+            }
+        }
+        if (result.isEmpty()) {
+            SteamDeckKeyboard.LOGGER.warn("findAllEditBoxes: no EditBoxes found for screen {}", screen);
         }
         return result;
     }
 
-    private static Field findField(Class<?> clazz, String name) {
-        Class<?> cur = clazz;
-        while (cur != null) {
-            try { return cur.getDeclaredField(name); }
-            catch (NoSuchFieldException e) { cur = cur.getSuperclass(); }
+    private static void initJei() {
+        if (jeiInitDone) return;
+        jeiInitDone = true;
+
+        try {
+            jeiInternalClass = Class.forName("mezz.jei.common.Internal");
+            Object runtime = jeiInternalClass.getMethod("getJeiRuntime").invoke(null);
+            if (runtime != null) {
+                jeiGetOverlayMethod = runtime.getClass().getMethod("getIngredientListOverlay");
+                Object overlay = jeiGetOverlayMethod.invoke(runtime);
+                if (overlay != null) {
+                    // actual class is IngredientListOverlay which has the searchField
+                    jeiSearchField = findField(overlay.getClass(), "searchField");
+                    if (jeiSearchField != null) {
+                        jeiSearchField.setAccessible(true);
+                        SteamDeckKeyboard.LOGGER.info("JEI search field found on {}", overlay.getClass().getName());
+                    }
+                }
+            }
+        } catch (Exception e) {
+            SteamDeckKeyboard.LOGGER.warn("JEI init failed: {}", e.toString());
+        }
+    }
+
+    private static Field findField(Class<?> clazz, String... names) {
+        for (String name : names) {
+            Class<?> cur = clazz;
+            while (cur != null) {
+                try { return cur.getDeclaredField(name); }
+                catch (NoSuchFieldException e) { cur = cur.getSuperclass(); }
+            }
         }
         return null;
     }
@@ -94,11 +113,14 @@ public class KeyboardInputHandler {
 
     public static class SimpleInputTarget implements InputTarget {
         private final Screen screen;
+        private EditBox lastTarget;
+
         public SimpleInputTarget(Screen screen) { this.screen = screen; }
 
         private EditBox getTarget() {
             var all = findAllEditBoxes(screen);
-            for (var eb : all) { if (eb.isFocused()) return eb; }
+            for (var eb : all) { if (eb.isFocused()) { lastTarget = eb; return eb; } }
+            if (lastTarget != null && all.contains(lastTarget)) return lastTarget;
             for (var eb : all) {
                 String n = eb.getClass().getSimpleName();
                 if (n.contains("Filter") || n.contains("Search") || n.contains("search")) return eb;
@@ -108,15 +130,48 @@ public class KeyboardInputHandler {
 
         @Override public void acceptChar(char ch) {
             var t = getTarget();
-            if (t != null) t.charTyped(ch, 0);
+            if (t == null) {
+                // No EditBox found by our search — try screen-level charTyped
+                screen.charTyped(ch, 0);
+                return;
+            }
+            t.setFocused(true);
+            t.setEditable(true);
+            if (!t.charTyped(ch, 0)) {
+                insertCharDirect(t, ch);
+            }
+        }
+
+        /** Bypasses EditBox focus checks by directly inserting at cursor position. */
+        private void insertCharDirect(EditBox eb, char ch) {
+            String old = eb.getValue();
+            int cursor = eb.getCursorPosition();
+            if (cursor < 0 || cursor > old.length()) cursor = old.length();
+            eb.setValue(old.substring(0, cursor) + ch + old.substring(cursor));
+            eb.moveCursorTo(cursor + 1, false);
         }
 
         @Override public void acceptSpecial(SpecialKey key) {
             var t = getTarget();
             if (t == null) return;
             switch (key) {
-                case BACKSPACE -> { String v = t.getValue(); if (!v.isEmpty()) t.setValue(v.substring(0, v.length() - 1)); }
-                case ENTER -> t.keyPressed(com.mojang.blaze3d.platform.InputConstants.KEY_RETURN, 0, 0);
+                case BACKSPACE -> {
+                    String v = t.getValue();
+                    if (v.isEmpty()) break;
+                    t.setFocused(true);
+                    t.setEditable(true);
+                    int cursor = t.getCursorPosition();
+                    if (cursor <= 0 || cursor > v.length()) {
+                        if (!t.charTyped('\b', 0)) {
+                            t.setValue(v.substring(0, v.length() - 1));
+                        }
+                    } else {
+                        t.setValue(v.substring(0, cursor - 1) + v.substring(cursor));
+                        t.moveCursorTo(cursor - 1, false);
+                    }
+                }
+                case TAB -> screen.keyPressed(com.mojang.blaze3d.platform.InputConstants.KEY_TAB, 0, 0);
+                case ENTER -> screen.keyPressed(com.mojang.blaze3d.platform.InputConstants.KEY_RETURN, 0, 0);
             }
         }
     }

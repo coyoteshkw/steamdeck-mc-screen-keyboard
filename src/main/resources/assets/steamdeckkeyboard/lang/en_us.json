@@ -1,4 +1,34 @@
 {
   "key.steamdeckkeyboard.toggle": "Toggle Keyboard",
-  "category.steamdeckkeyboard": "Steam Deck Keyboard"
+  "category.steamdeckkeyboard": "Steam Deck Keyboard",
+
+  "steamdeckkeyboard.configuration.title": "Steam Deck Keyboard Config",
+  "steamdeckkeyboard.configuration.section.steamdeckkeyboard.client": "Client Settings",
+
+  "steamdeckkeyboard.configuration.toggleKeyCode": "Toggle Key Code",
+  "steamdeckkeyboard.configuration.toggleKeyCode.tooltip": "GLFW key code for toggling the keyboard (default: K = 75)",
+
+  "steamdeckkeyboard.configuration.autoOpenChat": "Auto Open on Chat",
+  "steamdeckkeyboard.configuration.autoOpenChat.tooltip": "Automatically open keyboard when chat field gains focus",
+
+  "steamdeckkeyboard.configuration.autoOpenSearch": "Auto Open on Search",
+  "steamdeckkeyboard.configuration.autoOpenSearch.tooltip": "Automatically open keyboard when JEI/EMI search field gains focus",
+
+  "steamdeckkeyboard.configuration.autoOpenOthers": "Auto Open on Other Fields",
+  "steamdeckkeyboard.configuration.autoOpenOthers.tooltip": "Automatically open keyboard when other text fields gain focus",
+
+  "steamdeckkeyboard.configuration.keyboardX": "Keyboard X Position",
+  "steamdeckkeyboard.configuration.keyboardX.tooltip": "Horizontal position of the keyboard (-1 = auto center)",
+
+  "steamdeckkeyboard.configuration.keyboardY": "Keyboard Y Position",
+  "steamdeckkeyboard.configuration.keyboardY.tooltip": "Vertical position of the keyboard (-1 = auto near bottom)",
+
+  "steamdeckkeyboard.configuration.keyboardWidth": "Keyboard Width",
+  "steamdeckkeyboard.configuration.keyboardWidth.tooltip": "Width of the keyboard in pixels (-1 = 90% of screen width)",
+
+  "steamdeckkeyboard.configuration.keyboardHeight": "Keyboard Height",
+  "steamdeckkeyboard.configuration.keyboardHeight.tooltip": "Height of the keyboard in pixels (-1 = 30% of screen height)",
+
+  "steamdeckkeyboard.configuration.resetPosition": "Reset Keyboard Position",
+  "steamdeckkeyboard.configuration.resetPosition.tooltip": "Enable to reset keyboard position to default on next tick"
 }

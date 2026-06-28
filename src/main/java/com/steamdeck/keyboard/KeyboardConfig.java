@@ -38,5 +38,9 @@ public class KeyboardConfig {
             .comment("Saved keyboard height (-1 = 30% of screen)")
             .defineInRange("keyboardHeight", -1, -1, 10000);
 
+    public static final ModConfigSpec.BooleanValue RESET_POSITION = BUILDER
+            .comment("Set to true to reset keyboard position to default")
+            .define("resetPosition", false);
+
     public static final ModConfigSpec SPEC = BUILDER.build();
 }
