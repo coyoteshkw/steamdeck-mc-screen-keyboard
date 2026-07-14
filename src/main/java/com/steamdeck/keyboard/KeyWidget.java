@@ -39,6 +39,7 @@ public class KeyWidget extends AbstractWidget {
     }
 
     public KeyboardLayout.KeyType getKeyType() { return keyDef.keyType(); }
+    public KeyboardLayout.KeyDef getKeyDef() { return keyDef; }
 
     /** Called by parent to update absolute position after drag */
     public void updateAbsolutePosition(int parentX, int parentY) {
@@ -65,6 +66,10 @@ public class KeyWidget extends AbstractWidget {
             case BACKSPACE -> "\u2190";
             case ENTER -> "\u21B5";
             case TAB -> "\u21E5";
+            case ARROW_UP -> "\u25B2";
+            case ARROW_DOWN -> "\u25BC";
+            case ARROW_LEFT -> "\u25C0";
+            case ARROW_RIGHT -> "\u25B6";
             case CLOSE -> "\u00D7";
         };
         int tw = Minecraft.getInstance().font.width(label);

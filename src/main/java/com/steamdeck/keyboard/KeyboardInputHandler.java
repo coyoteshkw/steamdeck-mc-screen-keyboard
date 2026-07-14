@@ -172,6 +172,10 @@ public class KeyboardInputHandler {
                 }
                 case TAB -> screen.keyPressed(com.mojang.blaze3d.platform.InputConstants.KEY_TAB, 0, 0);
                 case ENTER -> screen.keyPressed(com.mojang.blaze3d.platform.InputConstants.KEY_RETURN, 0, 0);
+                case ARROW_UP -> screen.keyPressed(com.mojang.blaze3d.platform.InputConstants.KEY_UP, 0, 0);
+                case ARROW_DOWN -> screen.keyPressed(com.mojang.blaze3d.platform.InputConstants.KEY_DOWN, 0, 0);
+                case ARROW_LEFT -> screen.keyPressed(com.mojang.blaze3d.platform.InputConstants.KEY_LEFT, 0, 0);
+                case ARROW_RIGHT -> screen.keyPressed(com.mojang.blaze3d.platform.InputConstants.KEY_RIGHT, 0, 0);
             }
         }
     }

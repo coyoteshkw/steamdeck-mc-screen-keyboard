@@ -91,13 +91,23 @@ public class KeyboardWidget extends AbstractWidget implements ContainerEventHand
                 else { setShifted(false); setShiftLocked(false); }
             }
             case TAB -> inputTarget.acceptSpecial(InputTarget.SpecialKey.TAB);
+            case ARROW_UP -> inputTarget.acceptSpecial(InputTarget.SpecialKey.ARROW_UP);
+            case ARROW_DOWN -> inputTarget.acceptSpecial(InputTarget.SpecialKey.ARROW_DOWN);
+            case ARROW_LEFT -> inputTarget.acceptSpecial(InputTarget.SpecialKey.ARROW_LEFT);
+            case ARROW_RIGHT -> inputTarget.acceptSpecial(InputTarget.SpecialKey.ARROW_RIGHT);
             case CLOSE -> onClose.run();
         }
     }
 
     public void setShifted(boolean s) { shifted = s; }
+    public boolean isShifted() { return shifted; }
     private void setShiftLocked(boolean l) { shiftLocked = l; }
     public List<KeyWidget> getKeys() { return keys; }
+
+    /** Re-trigger a key's press action for long-press repeat. */
+    public void repeatKeyPress(KeyboardLayout.KeyDef def) {
+        onKeyPress(def);
+    }
 
     @Override
     protected void renderWidget(@NotNull GuiGraphics g, int mx, int my, float a) {

@@ -29,6 +29,12 @@ public class SteamDeckKeyboardClient {
     private static net.minecraft.client.gui.screens.Screen keyboardHostScreen = null;
     private static KeyboardInputHandler.SimpleInputTarget activeInputTarget = null;
 
+    // Long-press repeat
+    private static KeyWidget heldKey = null;
+    private static int heldTicks = 0;
+    private static final int REPEAT_DELAY = 15;
+    private static final int REPEAT_RATE = 2;
+
     public SteamDeckKeyboardClient(IEventBus modEventBus, ModContainer modContainer) {
         modContainer.registerConfig(ModConfig.Type.CLIENT, KeyboardConfig.SPEC);
         modContainer.registerExtensionPoint(IConfigScreenFactory.class, (container, screen) -> new ConfigurationScreen(container, screen));
@@ -113,6 +119,8 @@ public class SteamDeckKeyboardClient {
             for (var key : activeKeyboard.getKeys()) {
                 if (key.isMouseOverAbs(mx, my)) {
                     key.mouseClickedAbs(mx, my, 0);
+                    heldKey = key;
+                    heldTicks = 0;
                     return;
                 }
             }
@@ -122,6 +130,7 @@ public class SteamDeckKeyboardClient {
             for (var key : activeKeyboard.getKeys()) {
                 key.mouseReleasedAbs(mx, my, 0);
             }
+            heldKey = null;
             if (activeKeyboard.isMoving()) {
                 activeKeyboard.stopMoving();
                 KeyboardConfig.KEYBOARD_X.set(activeKeyboard.getX());
@@ -146,6 +155,26 @@ public class SteamDeckKeyboardClient {
             double mx = mc.mouseHandler.xpos() * mc.getWindow().getGuiScaledWidth() / mc.getWindow().getScreenWidth();
             double my = mc.mouseHandler.ypos() * mc.getWindow().getGuiScaledHeight() / mc.getWindow().getScreenHeight();
             activeKeyboard.onDrag(mx, my);
+        }
+
+        // Handle long-press repeat
+        if (heldKey != null && activeKeyboard != null) {
+            long window = mc.getWindow().getWindow();
+            boolean stillDown = GLFW.glfwGetMouseButton(window, GLFW.GLFW_MOUSE_BUTTON_LEFT) == GLFW.GLFW_PRESS;
+            if (!stillDown) {
+                heldKey = null;
+            } else {
+                heldTicks++;
+                var kt = heldKey.getKeyDef().keyType();
+                if (heldTicks >= REPEAT_DELAY && (heldTicks - REPEAT_DELAY) % REPEAT_RATE == 0) {
+                    if (kt == KeyboardLayout.KeyType.BACKSPACE || kt == KeyboardLayout.KeyType.CHAR
+                        || kt == KeyboardLayout.KeyType.SPACE || kt == KeyboardLayout.KeyType.ARROW_UP
+                        || kt == KeyboardLayout.KeyType.ARROW_DOWN || kt == KeyboardLayout.KeyType.ARROW_LEFT
+                        || kt == KeyboardLayout.KeyType.ARROW_RIGHT) {
+                        activeKeyboard.repeatKeyPress(heldKey.getKeyDef());
+                    }
+                }
+            }
         }
 
         if (pendingKeyboardOpen) {
@@ -179,6 +208,7 @@ public class SteamDeckKeyboardClient {
         activeKeyboard = null;
         keyboardHostScreen = null;
         activeInputTarget = null;
+        heldKey = null;
     }
 
     private KeyboardWidget createKeyboardWidget(net.minecraft.client.gui.screens.Screen screen, InputTarget target) {
