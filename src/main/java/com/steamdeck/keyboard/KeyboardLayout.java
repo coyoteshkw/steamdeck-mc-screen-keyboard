@@ -33,8 +33,8 @@ public final class KeyboardLayout {
             new KeyDef("y", 'y', 'Y', KeyType.CHAR, 1f),
             new KeyDef("u", 'u', 'U', KeyType.CHAR, 1f),
             new KeyDef("i", 'i', 'I', KeyType.CHAR, 1f),
-            new KeyDef("o", 'o', '{', KeyType.CHAR, 1f),
-            new KeyDef("p", 'p', '}', KeyType.CHAR, 1f),
+            new KeyDef("o", 'o', 'O', KeyType.CHAR, 1f),
+            new KeyDef("p", 'p', 'P', KeyType.CHAR, 1f),
             new KeyDef("backspace", '\b', '\b', KeyType.BACKSPACE, 2f)
         ),
         // Home row
