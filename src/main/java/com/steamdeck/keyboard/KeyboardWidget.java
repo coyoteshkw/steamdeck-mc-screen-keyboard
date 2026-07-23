@@ -43,7 +43,13 @@ public class KeyboardWidget extends AbstractWidget implements ContainerEventHand
             float relX = 0;
             for (KeyboardLayout.KeyDef def : row) {
                 float kw = def.width() * uw;
-                keys.add(new KeyWidget((int) relX, (int) relY, (int) kw, (int) kh, def,
+                float ky = relY;
+                float kh2 = kh;
+                if (def.rowSpan() > 1) {
+                    ky = relY - kh * (def.rowSpan() - 1);
+                    kh2 = kh * def.rowSpan();
+                }
+                keys.add(new KeyWidget((int) relX, (int) ky, (int) kw, (int) kh2, def,
                     () -> onKeyPress(def)));
                 relX += kw;
             }
@@ -90,6 +96,11 @@ public class KeyboardWidget extends AbstractWidget implements ContainerEventHand
                 else if (!shiftLocked) setShiftLocked(true);
                 else { setShifted(false); setShiftLocked(false); }
             }
+            case CAPS -> {
+                if (!shiftLocked) { setShifted(true); setShiftLocked(true); }
+                else { setShifted(false); setShiftLocked(false); }
+            }
+            case CLEAR -> inputTarget.acceptSpecial(InputTarget.SpecialKey.CLEAR);
             case TAB -> inputTarget.acceptSpecial(InputTarget.SpecialKey.TAB);
             case ARROW_UP -> inputTarget.acceptSpecial(InputTarget.SpecialKey.ARROW_UP);
             case ARROW_DOWN -> inputTarget.acceptSpecial(InputTarget.SpecialKey.ARROW_DOWN);

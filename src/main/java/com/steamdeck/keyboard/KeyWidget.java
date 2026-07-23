@@ -62,6 +62,8 @@ public class KeyWidget extends AbstractWidget {
         String label = switch (keyDef.keyType()) {
             case CHAR -> String.valueOf(shifted ? keyDef.shifted() : keyDef.normal());
             case SHIFT -> shifted ? "\u21EA" : "\u21E7";
+            case CAPS -> "Caps";
+            case CLEAR -> "\u2327";
             case SPACE -> "";
             case BACKSPACE -> "\u2190";
             case ENTER -> "\u21B5";

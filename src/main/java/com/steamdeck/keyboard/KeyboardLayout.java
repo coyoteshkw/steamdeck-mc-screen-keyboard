@@ -3,12 +3,16 @@ package com.steamdeck.keyboard;
 import java.util.List;
 
 public final class KeyboardLayout {
-    public enum KeyType { CHAR, BACKSPACE, ENTER, SHIFT, SPACE, CLOSE, TAB, ARROW_UP, ARROW_DOWN, ARROW_LEFT, ARROW_RIGHT }
+    public enum KeyType { CHAR, BACKSPACE, ENTER, SHIFT, CAPS, SPACE, CLOSE, TAB, CLEAR, ARROW_UP, ARROW_DOWN, ARROW_LEFT, ARROW_RIGHT }
 
-    public record KeyDef(String name, char normal, char shifted, KeyType keyType, float width) {}
+    public record KeyDef(String name, char normal, char shifted, KeyType keyType, float width, int rowSpan) {
+        public KeyDef(String name, char normal, char shifted, KeyType keyType, float width) {
+            this(name, normal, shifted, keyType, width, 1);
+        }
+    }
 
     public static final List<List<KeyDef>> ROWS = List.of(
-        // Number row
+        // Row 0: Number row
         List.of(
             new KeyDef("1", '1', '!', KeyType.CHAR, 1f),
             new KeyDef("2", '2', '@', KeyType.CHAR, 1f),
@@ -21,10 +25,12 @@ public final class KeyboardLayout {
             new KeyDef("9", '9', '(', KeyType.CHAR, 1f),
             new KeyDef("0", '0', ')', KeyType.CHAR, 1f),
             new KeyDef("minus", '-', '_', KeyType.CHAR, 1f),
-            new KeyDef("equals", '=', '+', KeyType.CHAR, 1f)
+            new KeyDef("equals", '=', '+', KeyType.CHAR, 1f),
+            new KeyDef("backspace", '\b', '\b', KeyType.BACKSPACE, 2f)
         ),
-        // Top letter row
+        // Row 1: Tab + QWERTY + brackets
         List.of(
+            new KeyDef("tab", '\t', '\t', KeyType.TAB, 2f),
             new KeyDef("q", 'q', 'Q', KeyType.CHAR, 1f),
             new KeyDef("w", 'w', 'W', KeyType.CHAR, 1f),
             new KeyDef("e", 'e', 'E', KeyType.CHAR, 1f),
@@ -35,11 +41,12 @@ public final class KeyboardLayout {
             new KeyDef("i", 'i', 'I', KeyType.CHAR, 1f),
             new KeyDef("o", 'o', 'O', KeyType.CHAR, 1f),
             new KeyDef("p", 'p', 'P', KeyType.CHAR, 1f),
-            new KeyDef("backspace", '\b', '\b', KeyType.BACKSPACE, 2f)
+            new KeyDef("lbracket", '[', '{', KeyType.CHAR, 1f),
+            new KeyDef("rbracket", ']', '}', KeyType.CHAR, 1f)
         ),
-        // Home row
+        // Row 2: Caps + ASDF + ;' + Enter (1f)
         List.of(
-            new KeyDef("tab", '\t', '\t', KeyType.TAB, 1f),
+            new KeyDef("caps", '\0', '\0', KeyType.CAPS, 2f),
             new KeyDef("a", 'a', 'A', KeyType.CHAR, 1f),
             new KeyDef("s", 's', 'S', KeyType.CHAR, 1f),
             new KeyDef("d", 'd', 'D', KeyType.CHAR, 1f),
@@ -49,10 +56,11 @@ public final class KeyboardLayout {
             new KeyDef("j", 'j', 'J', KeyType.CHAR, 1f),
             new KeyDef("k", 'k', 'K', KeyType.CHAR, 1f),
             new KeyDef("l", 'l', 'L', KeyType.CHAR, 1f),
-            new KeyDef("slash", '/', '?', KeyType.CHAR, 1f),
+            new KeyDef("semicolon", ';', ':', KeyType.CHAR, 1f),
+            new KeyDef("quote", '\'', '"', KeyType.CHAR, 1f),
             new KeyDef("enter", '\n', '\n', KeyType.ENTER, 1f)
         ),
-        // Bottom letter row
+        // Row 3: Shift + ZXCVBNM + ,./ + Enter (2f)
         List.of(
             new KeyDef("shift", '\0', '\0', KeyType.SHIFT, 2f),
             new KeyDef("z", 'z', 'Z', KeyType.CHAR, 1f),
@@ -62,13 +70,16 @@ public final class KeyboardLayout {
             new KeyDef("b", 'b', 'B', KeyType.CHAR, 1f),
             new KeyDef("n", 'n', 'N', KeyType.CHAR, 1f),
             new KeyDef("m", 'm', 'M', KeyType.CHAR, 1f),
-            new KeyDef("comma", ',', ';', KeyType.CHAR, 1f),
-            new KeyDef("period", '.', '\'', KeyType.CHAR, 1f)
+            new KeyDef("comma", ',', '<', KeyType.CHAR, 1f),
+            new KeyDef("period", '.', '>', KeyType.CHAR, 1f),
+            new KeyDef("slash", '/', '?', KeyType.CHAR, 1f),
+            new KeyDef("enter", '\n', '\n', KeyType.ENTER, 2f)
         ),
-        // Space + arrows row
+        // Row 4: Clear + Space + grave + arrows
         List.of(
-            new KeyDef("space", ' ', ' ', KeyType.SPACE, 6f),
-            new KeyDef("semicolon", ';', ':', KeyType.CHAR, 1f),
+            new KeyDef("clear", '\0', '\0', KeyType.CLEAR, 1f),
+            new KeyDef("space", ' ', ' ', KeyType.SPACE, 5f),
+            new KeyDef("grave", '`', '~', KeyType.CHAR, 1f),
             new KeyDef("left", '\0', '\0', KeyType.ARROW_LEFT, 1f),
             new KeyDef("down", '\0', '\0', KeyType.ARROW_DOWN, 1f),
             new KeyDef("up", '\0', '\0', KeyType.ARROW_UP, 1f),
@@ -77,7 +88,7 @@ public final class KeyboardLayout {
         )
     );
 
-    public static final float LAYOUT_WIDTH = 12f;
+    public static final float LAYOUT_WIDTH = 14f;
 
     private KeyboardLayout() {}
 }

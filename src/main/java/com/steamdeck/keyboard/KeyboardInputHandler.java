@@ -170,6 +170,7 @@ public class KeyboardInputHandler {
                         t.moveCursorTo(cursor - 1, false);
                     }
                 }
+                case CLEAR -> { if (t != null) t.setValue(""); }
                 case TAB -> screen.keyPressed(com.mojang.blaze3d.platform.InputConstants.KEY_TAB, 0, 0);
                 case ENTER -> screen.keyPressed(com.mojang.blaze3d.platform.InputConstants.KEY_RETURN, 0, 0);
                 case ARROW_UP -> screen.keyPressed(com.mojang.blaze3d.platform.InputConstants.KEY_UP, 0, 0);
